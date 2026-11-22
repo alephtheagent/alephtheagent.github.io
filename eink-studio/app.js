@@ -1,10 +1,11 @@
 import { WIDTH, HEIGHT, FRAME_BYTES, renderGray, packBits, unpackBits } from './image.js';
 import { BleTransport } from './ble.js';
 import { createTextEditor } from './text.js';
+import { initOta } from './ota.js';
 const $ = id => document.getElementById(id);
 const preview = $('preview'), native = $('native'), status = $('status');
 let source = null, rotation = 0, frame = new Uint8Array(FRAME_BYTES), connected = false, sending = false;
-let textEditor, whiteBackground = false;
+let textEditor, whiteBackground = false, ota = null;
 const imageFields = ['mode', 'zoom', 'x', 'y', 'tileSize', 'brightness', 'contrast', 'threshold', 'dither', 'invert'];
 function imageState() { return { source, rotation, whiteBackground, values: Object.fromEntries(imageFields.map(id => [id, id === 'invert' ? $(id).checked : $(id).value])) }; }
 function restoreImage(state) { source = state.source; rotation = state.rotation; whiteBackground = state.whiteBackground; $('image-rotation').value = rotation; for (const [id, value] of Object.entries(state.values)) { if (id === 'invert') $(id).checked = value; else $(id).value = value; if ($(`${id}-value`)) $(`${id}-value`).textContent = value; } $('image-name').textContent = source ? (state.name || 'Image') : 'No image selected'; }
@@ -40,6 +41,7 @@ $('reference').addEventListener('click', async () => {
   catch (e) { status.textContent = `Could not open reference: ${e.message}`; }
 });
 document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => {
+  if (button.dataset.action === 'firmware') { openFirmware(); button.closest('details').open = false; return; }
   const target = $(button.dataset.action);
   if (target.id === 'invert') { target.checked = !target.checked; target.dispatchEvent(new Event('input')); }
   else if (!target.disabled) target.click();
@@ -79,11 +81,14 @@ preview.addEventListener('wheel', e => { e.preventDefault(); const factor = e.de
 function download(blob, name) { const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
 $('png').addEventListener('click', () => native.toBlob(blob => { if (blob) download(blob, 'eink-122x250.png'); else status.textContent = 'Could not create PNG.'; }, 'image/png'));
 $('frame').addEventListener('click', () => download(new Blob([frame], { type: 'application/octet-stream' }), 'eink-122x250.bin'));
-function buttons() { $('connect').disabled = connected || sending || !navigator.bluetooth; $('send').disabled = !connected || sending; $('disconnect').disabled = !connected || sending; }
+function buttons() { $('connect').disabled = connected || sending || !navigator.bluetooth; $('send').disabled = !connected || sending; $('disconnect').disabled = !connected || sending; ota?.setConnected(connected); }
+function openFirmware() { const panel = $('firmware'); if (!panel) return; panel.hidden = false; panel.open = true; panel.scrollIntoView?.({ block: 'nearest' }); }
 const transport = new BleTransport({ onProgress: (n, total) => { $('progress').max = total; $('progress').value = n; status.textContent = `Sending: ${n} / ${total} bytes acknowledged.`; }, onStatus: s => { if (s.disconnected) { connected = false; status.textContent = 'Disconnected. Reconnect to start a new transfer.'; buttons(); } else if (s.state === 2 || s.state === 3) status.textContent = 'Frame accepted; display is refreshing…'; } });
 $('connect').addEventListener('click', async () => { sending = true; buttons(); try { const s = await transport.connect(); connected = true; status.textContent = `Connected. Device state: ${['idle', 'receiving', 'queued', 'refreshing', 'done', 'error'][s.state] || 'unknown'}.`; } catch (e) { transport.disconnect(); status.textContent = `Connection failed: ${e.message}`; } finally { sending = false; buttons(); } });
 $('disconnect').addEventListener('click', () => { transport.disconnect(); connected = false; status.textContent = 'Disconnected.'; buttons(); });
 $('send').addEventListener('click', async () => { sending = true; $('progress').value = 0; buttons(); try { await transport.send(frame.slice()); status.textContent = 'Display refresh completed.'; } catch (e) { status.textContent = `Transfer failed: ${e.message}`; if (!transport.command) connected = false; } finally { sending = false; buttons(); } });
 if (!navigator.bluetooth) status.textContent = 'Web Bluetooth unavailable. Use supported Chromium on HTTPS or localhost; iOS Safari is not supported.';
+ota = initOta({ transport });
+$('fw-open').addEventListener('click', openFirmware);
 textEditor = createTextEditor({ preview, render, getImage: () => ({ ...imageState(), name: $('image-name').textContent }), setImage: restoreImage, clearImage: () => { source = null; whiteBackground = true; $('image-name').textContent = 'No image selected'; } });
 buttons(); render();

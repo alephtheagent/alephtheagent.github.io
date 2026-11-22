@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>E-Ink Studio</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="text.css"></head>
 <body>
 <header class="menubar"><strong>▣ E-Ink Studio</strong><nav aria-label="Editor menus">
-<details><summary>File</summary><div class="menu"><button data-action="open">Open image…</button><button data-action="reference">Open approved reference</button><button data-action="text-only">Text only</button><button data-action="png">Save PNG</button><button data-action="frame">Save frame</button></div></details>
+<details><summary>File</summary><div class="menu"><button data-action="open">Open image…</button><button data-action="reference">Open approved reference</button><button data-action="text-only">Text only</button><button data-action="png">Save PNG</button><button data-action="frame">Save frame</button><button data-action="firmware">Firmware update…</button></div></details>
 <details><summary>Edit</summary><div class="menu"><button data-action="add-text">Add text</button><button data-action="text-undo">Undo</button><button data-action="text-redo">Redo</button><button data-action="image-fine">Fine image rotation…</button><button data-action="reset">Reset view</button><button data-action="rotate">Rotate 90°</button><button data-action="invert">Invert image</button></div></details>
 <details><summary>Display</summary><div class="menu"><button data-action="connect">Connect…</button><button data-action="send">Send frame</button><button data-action="disconnect">Disconnect</button></div></details>
 </nav></header>
@@ -48,9 +48,27 @@
 <button id="add-text" type="button" hidden>Add text</button><button id="text-only" type="button" hidden>Text only</button><button id="image-fine" type="button" hidden>Fine image rotation</button>
 </div></section>
 <section class="window device-window" aria-labelledby="device-title"><h2 id="device-title" class="titlebar"><span>Display connection</span></h2><div class="window-body">
-<div class="toolbar"><button id="connect" type="button">Connect…</button><button id="send" type="button" disabled>Send to display</button><button id="disconnect" type="button" disabled>Disconnect</button></div>
+<div class="toolbar"><button id="connect" type="button">Connect…</button><button id="send" type="button" disabled>Send to display</button><button id="disconnect" type="button" disabled>Disconnect</button><button id="fw-open" type="button">Firmware update…</button></div>
 <label for="progress">Transfer progress</label><progress id="progress" max="4000" value="0"></progress><p id="status" role="status" aria-live="polite">Not connected.</p>
 <p>Images stay on this device. Bluetooth requires HTTPS or localhost and a supported Chromium browser. iOS/Safari and Firefox cannot send via Web Bluetooth; editing and downloads still work. No BLE authentication or encryption is required: nearby clients can replace the screen.</p>
 </div></section>
-</main><script type="module" src="app.js"></script>
+<details id="firmware" class="window firmware-window" hidden>
+<summary class="titlebar"><span>Firmware update</span></summary>
+<div class="window-body">
+<fieldset><legend>Release</legend>
+<p id="fw-version">Latest release: not checked yet.</p>
+<p id="fw-size">Package size: unknown.</p>
+<p id="fw-installed">Installed version: unknown (firmware does not report one).</p>
+<div class="toolbar"><button id="fw-check" type="button">Update to latest</button><button id="fw-enter-dfu" type="button" disabled>Enter DFU mode</button></div>
+</fieldset>
+<fieldset><legend>Flash</legend>
+<label class="check"><input id="fw-confirm" type="checkbox"> I understand that this firmware has no fallback bank.</label>
+<div class="toolbar"><button id="fw-flash" type="button" disabled>Flash firmware</button><button id="fw-cancel" type="button" disabled>Cancel</button></div>
+<label for="fw-progress">DFU progress</label><progress id="fw-progress" max="100" value="0"></progress>
+</fieldset>
+<p id="fw-status" role="status" aria-live="polite">Check for the latest firmware release to begin. Entering DFU mode restarts the display into its bootloader.</p>
+<p id="fw-warning">This device has a single firmware bank and no fallback. If the transfer is interrupted, the display may stay in the bootloader until you reconnect and repeat the update; do not disconnect, close the tab or let the device sleep during the transfer. Recovery requires a compatible bootloader and package.</p>
+<p id="fw-support">Works in Chrome and Edge on desktop, and Chrome on Android. Firefox and Safari cannot run Web Bluetooth; use the .uf2 or a Chromium browser. Anything that is not Chromium cannot flash over Bluetooth. After entering DFU the device appears as a Nordic bootloader, and the browser requires you to choose the device again in its picker.</p>
+</div></details>
+</main><script src="vendor/jszip.min.js"></script><script src="vendor/crc32.js"></script><script src="vendor/secure-dfu.js"></script><script src="legacy-dfu.js"></script><script type="module" src="app.js"></script>
 </body></html>
